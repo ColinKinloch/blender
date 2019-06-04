@@ -84,7 +84,7 @@ static GHOST_TButtonMask convertButton(int button)
  * \param recvChar the character ignoring modifiers (except for shift)
  * \return Ghost key code
  */
-static GHOST_TKey convertKey(int rawCode, unichar recvChar, UInt16 keyAction)
+static GHOST_TKey convertKey(int rawCode, int modifierFlags, unichar recvChar, UInt16 keyAction)
 {
   // printf("\nrecvchar %c 0x%x",recvChar,recvChar);
   switch (rawCode) {
@@ -265,6 +265,34 @@ static GHOST_TKey convertKey(int rawCode, unichar recvChar, UInt16 keyAction)
       return GHOST_kKeyUnknown;
 
     default: {
+      /* Leopard and Snow Leopard 64bit compatible API*/
+      CFDataRef uchrHandle; /*the keyboard layout*/
+      TISInputSourceRef kbdTISHandle;
+
+      kbdTISHandle = TISCopyCurrentKeyboardLayoutInputSource();
+      uchrHandle = (CFDataRef)TISGetInputSourceProperty(kbdTISHandle,
+                                                        kTISPropertyUnicodeKeyLayoutData);
+      CFRelease(kbdTISHandle);
+
+      /*get actual character value of the "remappable" keys in int'l keyboards,
+      if keyboard layout is not correctly reported (e.g. some non Apple keyboards in Tiger),
+      then fallback on using the received charactersIgnoringModifiers */
+      if (uchrHandle) {
+        UInt32 deadKeyState = 0;
+        UniCharCount actualStrLength = 0;
+
+        UCKeyTranslate((UCKeyboardLayout *)CFDataGetBytePtr(uchrHandle),
+                       rawCode,
+                       keyAction,
+                       (modifierFlags >> 8) & 0xFF,
+                       LMGetKbdType(),
+                       kUCKeyTranslateNoDeadKeysBit,
+                       &deadKeyState,
+                       1,
+                       &actualStrLength,
+                       &recvChar);
+      }
+
       /* alphanumerical or punctuation key that is remappable in int'l keyboards */
       if ((recvChar >= 'A') && (recvChar <= 'Z')) {
         return (GHOST_TKey)(recvChar - 'A' + GHOST_kKeyA);
@@ -272,63 +300,34 @@ static GHOST_TKey convertKey(int rawCode, unichar recvChar, UInt16 keyAction)
       else if ((recvChar >= 'a') && (recvChar <= 'z')) {
         return (GHOST_TKey)(recvChar - 'a' + GHOST_kKeyA);
       }
-      else {
-        /* Leopard and Snow Leopard 64bit compatible API*/
-        CFDataRef uchrHandle; /*the keyboard layout*/
-        TISInputSourceRef kbdTISHandle;
 
-        kbdTISHandle = TISCopyCurrentKeyboardLayoutInputSource();
-        uchrHandle = (CFDataRef)TISGetInputSourceProperty(kbdTISHandle,
-                                                          kTISPropertyUnicodeKeyLayoutData);
-        CFRelease(kbdTISHandle);
-
-        /*get actual character value of the "remappable" keys in int'l keyboards,
-        if keyboard layout is not correctly reported (e.g. some non Apple keyboards in Tiger),
-        then fallback on using the received charactersIgnoringModifiers */
-        if (uchrHandle) {
-          UInt32 deadKeyState = 0;
-          UniCharCount actualStrLength = 0;
-
-          UCKeyTranslate((UCKeyboardLayout *)CFDataGetBytePtr(uchrHandle),
-                         rawCode,
-                         keyAction,
-                         0,
-                         LMGetKbdType(),
-                         kUCKeyTranslateNoDeadKeysBit,
-                         &deadKeyState,
-                         1,
-                         &actualStrLength,
-                         &recvChar);
-        }
-
-        switch (recvChar) {
-          case '-':
-            return GHOST_kKeyMinus;
-          case '+':
-            return GHOST_kKeyPlus;
-          case '=':
-            return GHOST_kKeyEqual;
-          case ',':
-            return GHOST_kKeyComma;
-          case '.':
-            return GHOST_kKeyPeriod;
-          case '/':
-            return GHOST_kKeySlash;
-          case ';':
-            return GHOST_kKeySemicolon;
-          case '\'':
-            return GHOST_kKeyQuote;
-          case '\\':
-            return GHOST_kKeyBackslash;
-          case '[':
-            return GHOST_kKeyLeftBracket;
-          case ']':
-            return GHOST_kKeyRightBracket;
-          case '`':
-            return GHOST_kKeyAccentGrave;
-          default:
-            return GHOST_kKeyUnknown;
-        }
+      switch (recvChar) {
+        case '-':
+          return GHOST_kKeyMinus;
+        case '+':
+          return GHOST_kKeyPlus;
+        case '=':
+          return GHOST_kKeyEqual;
+        case ',':
+          return GHOST_kKeyComma;
+        case '.':
+          return GHOST_kKeyPeriod;
+        case '/':
+          return GHOST_kKeySlash;
+        case ';':
+          return GHOST_kKeySemicolon;
+        case '\'':
+          return GHOST_kKeyQuote;
+        case '\\':
+          return GHOST_kKeyBackslash;
+        case '[':
+          return GHOST_kKeyLeftBracket;
+        case ']':
+          return GHOST_kKeyRightBracket;
+        case '`':
+          return GHOST_kKeyAccentGrave;
+        default:
+          return GHOST_kKeyUnknown;
       }
     }
   }
@@ -1755,12 +1754,13 @@ GHOST_TSuccess GHOST_SystemCocoa::handleKeyEvent(void *eventPtr)
       charsIgnoringModifiers = [event charactersIgnoringModifiers];
       if ([charsIgnoringModifiers length] > 0) {
         keyCode = convertKey([event keyCode],
+                             [event modifierFlags],
                              [charsIgnoringModifiers characterAtIndex:0],
                              [event type] == NSKeyDown ? kUCKeyActionDown : kUCKeyActionUp);
       }
       else {
         keyCode = convertKey(
-            [event keyCode], 0, [event type] == NSKeyDown ? kUCKeyActionDown : kUCKeyActionUp);
+            [event keyCode], [event modifierFlags], 0, [event type] == NSKeyDown ? kUCKeyActionDown : kUCKeyActionUp);
       }
 
       /* handling both unicode or ascii */
