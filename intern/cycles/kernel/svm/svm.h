@@ -192,6 +192,9 @@ CCL_NAMESPACE_END
 #include "kernel/svm/svm_vector_transform.h"
 #include "kernel/svm/svm_voxel.h"
 #include "kernel/svm/svm_bump.h"
+#include "kernel/svm/svm_map_range.h"
+#include "kernel/svm/svm_clamp.h"
+#include "kernel/svm/svm_white_noise.h"
 
 #ifdef __SHADER_RAYTRACE__
 #  include "kernel/svm/svm_ao.h"
@@ -430,6 +433,9 @@ ccl_device_noinline void svm_eval_nodes(KernelGlobals *kg,
       case NODE_TEX_BRICK:
         svm_node_tex_brick(kg, sd, stack, node, &offset);
         break;
+      case NODE_TEX_WHITE_NOISE:
+        svm_node_tex_white_noise(kg, sd, stack, node.y, node.z, node.w, &offset);
+        break;
 #  endif /* __TEXTURES__ */
 #  ifdef __EXTRA_NODES__
       case NODE_NORMAL:
@@ -485,6 +491,12 @@ ccl_device_noinline void svm_eval_nodes(KernelGlobals *kg,
         break;
       case NODE_BLACKBODY:
         svm_node_blackbody(kg, sd, stack, node.y, node.z);
+        break;
+      case NODE_MAP_RANGE:
+        svm_node_map_range(kg, sd, stack, node.y, node.z, node.w, &offset);
+        break;
+      case NODE_CLAMP:
+        svm_node_clamp(kg, sd, stack, node.y, node.z, node.w, &offset);
         break;
 #  endif /* __EXTRA_NODES__ */
 #  if NODES_FEATURE(NODE_FEATURE_VOLUME)

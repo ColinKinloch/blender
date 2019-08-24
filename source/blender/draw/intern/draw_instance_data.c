@@ -23,7 +23,7 @@
 /**
  * DRW Instance Data Manager
  * This is a special memory manager that keeps memory blocks ready to send as vbo data in one
- * continuous allocation. This way we avoid feeding gawain each instance data one by one and
+ * continuous allocation. This way we avoid feeding #GPUBatch each instance data one by one and
  * unnecessary memcpy. Since we loose which memory block was used each #DRWShadingGroup we need to
  * redistribute them in the same order/size to avoid to realloc each frame. This is why
  * #DRWInstanceDatas are sorted in a list for each different data size.
@@ -141,7 +141,8 @@ GPUBatch *DRW_temp_batch_instance_request(DRWInstanceDataList *idatalist,
 
   GPUBatch *batch = BLI_memblock_alloc(idatalist->pool_instancing);
   bool is_compatible = (batch->gl_prim_type == geom->gl_prim_type) && (batch->inst == buf) &&
-                       (buf->vbo_id != 0) && (batch->phase == GPU_BATCH_READY_TO_DRAW);
+                       (buf->vbo_id != 0) && (batch->phase == GPU_BATCH_READY_TO_DRAW) &&
+                       (batch->elem == geom->elem);
   for (int i = 0; i < GPU_BATCH_VBO_MAX_LEN && is_compatible; i++) {
     if (batch->verts[i] != geom->verts[i]) {
       is_compatible = false;

@@ -85,7 +85,7 @@ struct Scene *BKE_collection_master_scene_search(const struct Main *bmain,
 
 /* Collection Objects */
 
-bool BKE_collection_has_object(struct Collection *collection, struct Object *ob);
+bool BKE_collection_has_object(struct Collection *collection, const struct Object *ob);
 bool BKE_collection_has_object_recursive(struct Collection *collection, struct Object *ob);
 struct Collection *BKE_collection_object_find(struct Main *bmain,
                                               struct Scene *scene,
@@ -171,7 +171,7 @@ void BKE_main_collections_parent_relations_rebuild(struct Main *bmain);
 typedef void (*BKE_scene_objects_Cb)(struct Object *ob, void *data);
 typedef void (*BKE_scene_collections_Cb)(struct Collection *ob, void *data);
 
-/* Iteratorion over objects in collection. */
+/* Iteration over objects in collection. */
 
 #define FOREACH_COLLECTION_VISIBLE_OBJECT_RECURSIVE_BEGIN(_collection, _object, _mode) \
   { \

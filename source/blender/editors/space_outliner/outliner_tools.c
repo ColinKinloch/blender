@@ -63,6 +63,7 @@
 
 #include "ED_armature.h"
 #include "ED_object.h"
+#include "ED_outliner.h"
 #include "ED_scene.h"
 #include "ED_screen.h"
 #include "ED_sequencer.h"
@@ -109,8 +110,9 @@ static void set_operation_types(SpaceOutliner *soops,
         }
       }
       else {
-        int idcode = GS(tselem->id->name);
-        switch (idcode) {
+        const int idcode = (int)GS(tselem->id->name);
+        bool is_standard_id = false;
+        switch ((ID_Type)idcode) {
           case ID_SCE:
             *scenelevel = 1;
             break;
@@ -134,21 +136,47 @@ static void set_operation_types(SpaceOutliner *soops,
           case ID_KE:
           case ID_WO:
           case ID_AC:
-          case ID_NLA:
           case ID_TXT:
           case ID_GR:
           case ID_LS:
           case ID_LI:
-            if (*idlevel == 0) {
-              *idlevel = idcode;
-            }
-            else if (*idlevel != idcode) {
-              *idlevel = -1;
-            }
-            if (ELEM(*datalevel, TSE_VIEW_COLLECTION_BASE, TSE_SCENE_COLLECTION_BASE)) {
-              *datalevel = 0;
-            }
+          case ID_VF:
+          case ID_NT:
+          case ID_BR:
+          case ID_PA:
+          case ID_GD:
+          case ID_MC:
+          case ID_MSK:
+          case ID_PAL:
+          case ID_PC:
+          case ID_CF:
+          case ID_WS:
+          case ID_LP:
+            is_standard_id = true;
             break;
+          case ID_WM:
+          case ID_SCR:
+            /* Those are ignored here. */
+            /* Note: while Screens should be manageable here, deleting a screen used by a workspace
+             * will cause crashes when trying to use that workspace, so for now let's play minimal,
+             * safe change. */
+            break;
+        }
+        if (idcode == ID_NLA) {
+          /* Fake one, not an actual ID type... */
+          is_standard_id = true;
+        }
+
+        if (is_standard_id) {
+          if (*idlevel == 0) {
+            *idlevel = idcode;
+          }
+          else if (*idlevel != idcode) {
+            *idlevel = -1;
+          }
+          if (ELEM(*datalevel, TSE_VIEW_COLLECTION_BASE, TSE_SCENE_COLLECTION_BASE)) {
+            *datalevel = 0;
+          }
         }
       }
     }
@@ -451,6 +479,129 @@ void OUTLINER_OT_scene_operation(wmOperatorType *ot)
 }
 /* ******************************************** */
 
+/**
+ * Stores the parent and a child element of a merged icon-row icon for
+ * the merged select popup menu. The sub-tree of the parent is searched and
+ * the child is needed to only show elements of the same type in the popup.
+ */
+typedef struct MergedSearchData {
+  TreeElement *parent_element;
+  TreeElement *select_element;
+} MergedSearchData;
+
+static void merged_element_search_cb_recursive(
+    const ListBase *tree, short tselem_type, short type, const char *str, uiSearchItems *items)
+{
+  char name[64];
+  int iconid;
+
+  for (TreeElement *te = tree->first; te; te = te->next) {
+    TreeStoreElem *tselem = TREESTORE(te);
+
+    if (tree_element_id_type_to_index(te) == type && tselem_type == tselem->type) {
+      if (BLI_strcasestr(te->name, str)) {
+        BLI_strncpy(name, te->name, 64);
+
+        iconid = tree_element_get_icon(tselem, te).icon;
+
+        /* Don't allow duplicate named items */
+        if (UI_search_items_find_index(items, name) == -1) {
+          if (!UI_search_item_add(items, name, te, iconid)) {
+            break;
+          }
+        }
+      }
+    }
+
+    merged_element_search_cb_recursive(&te->subtree, tselem_type, type, str, items);
+  }
+}
+
+/* Get a list of elements that match the search string */
+static void merged_element_search_cb(const bContext *UNUSED(C),
+                                     void *data,
+                                     const char *str,
+                                     uiSearchItems *items)
+{
+  MergedSearchData *search_data = (MergedSearchData *)data;
+  TreeElement *parent = search_data->parent_element;
+  TreeElement *te = search_data->select_element;
+
+  int type = tree_element_id_type_to_index(te);
+
+  merged_element_search_cb_recursive(&parent->subtree, TREESTORE(te)->type, type, str, items);
+}
+
+/* Activate an element from the merged element search menu */
+static void merged_element_search_call_cb(struct bContext *C, void *UNUSED(arg1), void *element)
+{
+  SpaceOutliner *soops = CTX_wm_space_outliner(C);
+  TreeElement *te = (TreeElement *)element;
+
+  outliner_item_select(soops, te, false, false);
+  outliner_item_do_activate_from_tree_element(C, te, te->store_elem, false, false);
+
+  if (soops->flag & SO_SYNC_SELECT) {
+    ED_outliner_select_sync_from_outliner(C, soops);
+  }
+}
+
+/** Merged element search menu
+ * Created on activation of a merged or aggregated icon-row icon.
+ */
+static uiBlock *merged_element_search_menu(bContext *C, ARegion *ar, void *data)
+{
+  static char search[64] = "";
+  uiBlock *block;
+  uiBut *but;
+
+  /* Clear search on each menu creation */
+  *search = '\0';
+
+  block = UI_block_begin(C, ar, __func__, UI_EMBOSS);
+  UI_block_flag_enable(block, UI_BLOCK_LOOP | UI_BLOCK_MOVEMOUSE_QUIT | UI_BLOCK_SEARCH_MENU);
+  UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
+
+  short menu_width = 10 * UI_UNIT_X;
+  but = uiDefSearchBut(
+      block, search, 0, ICON_VIEWZOOM, sizeof(search), 10, 10, menu_width, UI_UNIT_Y, 0, 0, "");
+  UI_but_func_search_set(
+      but, NULL, merged_element_search_cb, data, false, merged_element_search_call_cb, NULL);
+  UI_but_flag_enable(but, UI_BUT_ACTIVATE_ON_INIT);
+
+  /* Fake button to hold space for search items */
+  uiDefBut(block,
+           UI_BTYPE_LABEL,
+           0,
+           "",
+           10,
+           10 - UI_searchbox_size_y(),
+           menu_width,
+           UI_searchbox_size_y(),
+           NULL,
+           0,
+           0,
+           0,
+           0,
+           NULL);
+
+  /* Center the menu on the cursor */
+  UI_block_bounds_set_popup(block, 6, (const int[2]){-(menu_width / 2), 0});
+
+  return block;
+}
+
+void merged_element_search_menu_invoke(bContext *C,
+                                       TreeElement *parent_te,
+                                       TreeElement *activate_te)
+{
+  MergedSearchData *select_data = MEM_callocN(sizeof(MergedSearchData), "merge_search_data");
+  select_data->parent_element = parent_te;
+  select_data->select_element = activate_te;
+
+  UI_popup_block_invoke(C, merged_element_search_menu, select_data, MEM_freeN);
+}
+
 static void object_select_cb(bContext *C,
                              ReportList *UNUSED(reports),
                              Scene *UNUSED(scene),
@@ -627,7 +778,7 @@ static void singleuser_action_cb(bContext *C,
 
   if (id) {
     IdAdtTemplate *iat = (IdAdtTemplate *)tsep->id;
-    PointerRNA ptr = {{NULL}};
+    PointerRNA ptr = {NULL};
     PropertyRNA *prop;
 
     RNA_pointer_create(&iat->id, &RNA_AnimData, iat->adt, &ptr);
@@ -650,7 +801,7 @@ static void singleuser_world_cb(bContext *C,
   /* need to use parent scene not just scene, otherwise may end up getting wrong one */
   if (id) {
     Scene *parscene = (Scene *)tsep->id;
-    PointerRNA ptr = {{NULL}};
+    PointerRNA ptr = {NULL};
     PropertyRNA *prop;
 
     RNA_id_pointer_create(&parscene->id, &ptr);
@@ -720,6 +871,7 @@ static void clear_animdata_cb(int UNUSED(event),
                               void *UNUSED(arg))
 {
   BKE_animdata_free(tselem->id, true);
+  DEG_id_tag_update(tselem->id, ID_RECALC_ANIMATION);
 }
 
 static void unlinkact_animdata_cb(int UNUSED(event),
@@ -729,6 +881,7 @@ static void unlinkact_animdata_cb(int UNUSED(event),
 {
   /* just set action to NULL */
   BKE_animdata_set_action(NULL, tselem->id, NULL);
+  DEG_id_tag_update(tselem->id, ID_RECALC_ANIMATION);
 }
 
 static void cleardrivers_animdata_cb(int UNUSED(event),
@@ -740,6 +893,7 @@ static void cleardrivers_animdata_cb(int UNUSED(event),
 
   /* just free drivers - stored as a list of F-Curves */
   free_fcurves(&iat->adt->drivers);
+  DEG_id_tag_update(tselem->id, ID_RECALC_ANIMATION);
 }
 
 static void refreshdrivers_animdata_cb(int UNUSED(event),
@@ -1872,7 +2026,6 @@ static int outliner_animdata_operation_exec(bContext *C, wmOperator *op)
   SpaceOutliner *soops = CTX_wm_space_outliner(C);
   int scenelevel = 0, objectlevel = 0, idlevel = 0, datalevel = 0;
   eOutliner_AnimDataOps event;
-  short updateDeps = 0;
 
   /* check for invalid states */
   if (soops == NULL) {
@@ -1916,7 +2069,6 @@ static int outliner_animdata_operation_exec(bContext *C, wmOperator *op)
 
       WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN, NULL);
       // ED_undo_push(C, "Refresh Drivers"); /* no undo needed - shouldn't have any impact? */
-      updateDeps = 1;
       break;
 
     case OUTLINER_ANIMOP_CLEAR_DRV:
@@ -1925,7 +2077,6 @@ static int outliner_animdata_operation_exec(bContext *C, wmOperator *op)
 
       WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN, NULL);
       ED_undo_push(C, "Clear Drivers");
-      updateDeps = 1;
       break;
 
     default:  // invalid
@@ -1933,10 +2084,7 @@ static int outliner_animdata_operation_exec(bContext *C, wmOperator *op)
   }
 
   /* update dependencies */
-  if (updateDeps) {
-    /* rebuild depsgraph for the new deps */
-    DEG_relations_tag_update(CTX_data_main(C));
-  }
+  DEG_relations_tag_update(CTX_data_main(C));
 
   return OPERATOR_FINISHED;
 }

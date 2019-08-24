@@ -385,21 +385,21 @@ def km_user_interface(params):
     items.extend([
         # Eyedroppers all have the same event, and pass it through until
         # a suitable eyedropper handles it.
-        ("ui.eyedropper_color", {"type": 'E', "value": 'PRESS'}, None),
-        ("ui.eyedropper_colorramp", {"type": 'E', "value": 'PRESS'}, None),
-        ("ui.eyedropper_colorramp_point", {"type": 'E', "value": 'PRESS', "alt": True}, None),
-        ("ui.eyedropper_id", {"type": 'E', "value": 'PRESS'}, None),
-        ("ui.eyedropper_depth", {"type": 'E', "value": 'PRESS'}, None),
+        ("ui.eyedropper_color", {"type": 'I', "value": 'PRESS'}, None),
+        ("ui.eyedropper_colorramp", {"type": 'I', "value": 'PRESS'}, None),
+        ("ui.eyedropper_colorramp_point", {"type": 'I', "value": 'PRESS', "alt": True}, None),
+        ("ui.eyedropper_id", {"type": 'I', "value": 'PRESS'}, None),
+        ("ui.eyedropper_depth", {"type": 'I', "value": 'PRESS'}, None),
         # Copy data path
-        ("ui.copy_data_path_button", {"type": 'C', "value": 'PRESS', "shift": True, "ctrl": True}, None),
-        ("ui.copy_data_path_button", {"type": 'C', "value": 'PRESS', "shift": True, "ctrl": True, "alt": True},
+        ("ui.copy_data_path_button", {"type": 'C', "value": 'PRESS', "ctrl": True}, None),
+        ("ui.copy_data_path_button", {"type": 'C', "value": 'PRESS', "ctrl": True, "alt": True},
          {"properties": [("full_path", True)]}),
-        # rames and drivers
+        # Frames and drivers.
         ("anim.keyframe_insert_button", {"type": 'S', "value": 'PRESS'}, None),
         ("anim.keyframe_delete_button", {"type": 'S', "value": 'PRESS', "alt": True}, None),
         ("anim.keyframe_clear_button", {"type": 'S', "value": 'PRESS', "shift": True, "alt": True}, None),
-        ("anim.driver_button_add", {"type": 'D', "value": 'PRESS', "ctrl": True}, None),
-        ("anim.driver_button_remove", {"type": 'D', "value": 'PRESS', "ctrl": True, "alt": True}, None),
+        ("anim.driver_button_add", {"type": 'D', "value": 'PRESS'}, None),
+        ("anim.driver_button_remove", {"type": 'D', "value": 'PRESS', "alt": True}, None),
         ("anim.keyingset_button_add", {"type": 'K', "value": 'PRESS'}, None),
         ("anim.keyingset_button_remove", {"type": 'K', "value": 'PRESS', "alt": True}, None),
     ])
@@ -440,24 +440,41 @@ def km_outliner(params):
     )
 
     items.extend([
-        op_panel("TOPBAR_PT_name", {"type": 'RET', "value": 'PRESS'}, [("keep_open", False)]),
+        ("outliner.item_rename", {"type": 'LEFTMOUSE', "value": 'DOUBLE_CLICK'}, None),
+        ("outliner.item_rename", {"type": 'RET', "value": 'PRESS'}, None),
         ("wm.search_menu", {"type": 'TAB', "value": 'PRESS'}, None),
         ("outliner.highlight_update", {"type": 'MOUSEMOVE', "value": 'ANY', "any": True}, None),
-        ("outliner.item_rename", {"type": 'LEFTMOUSE', "value": 'DOUBLE_CLICK'}, None),
         ("outliner.item_activate", {"type": 'LEFTMOUSE', "value": 'CLICK'},
-         {"properties": [("extend", False), ("recursive", False), ("deselect_all", True)]}),
-        ("outliner.item_activate", {"type": 'LEFTMOUSE', "value": 'CLICK', "shift": True},
-         {"properties": [("extend", True), ("recursive", False)]}),
+         {"properties": [("extend", False), ("deselect_all", True)]}),
         ("outliner.item_activate", {"type": 'LEFTMOUSE', "value": 'CLICK', "ctrl": True},
-         {"properties": [("extend", False), ("recursive", True)]}),
-        ("outliner.item_activate", {"type": 'LEFTMOUSE', "value": 'CLICK', "shift": True, "ctrl": True},
-         {"properties": [("extend", True), ("recursive", True)]}),
-        ("outliner.select_box", {"type": 'Q', "value": 'PRESS'}, None),
-        ("outliner.item_openclose", {"type": 'RIGHT_ARROW', "value": 'PRESS'},
+         {"properties": [("extend", True), ("deselect_all", True)]}),
+        ("outliner.item_activate", {"type": 'LEFTMOUSE', "value": 'CLICK', "shift": True},
+         {"properties": [("extend", False), ("extend_range", True), ("deselect_all", True)]}),
+        ("outliner.item_activate", {"type": 'LEFTMOUSE', "value": 'CLICK', "ctrl": True, "shift": True},
+         {"properties": [("extend", True), ("extend_range", True), ("deselect_all", True)]}),
+        ("outliner.select_box", {"type": 'EVT_TWEAK_L', "value": 'ANY'}, {"properties": [("tweak", True)]}),
+        ("outliner.select_box", {"type": 'EVT_TWEAK_L', "value": 'ANY', "shift": True},
+         {"properties": [("tweak", True), ("mode", "ADD")]}),
+        ("outliner.select_box", {"type": 'EVT_TWEAK_L', "value": 'ANY', "ctrl": True},
+         {"properties": [("tweak", True), ("mode", "SUB")]}),
+        ("outliner.select_walk", {"type": 'UP_ARROW', "value": 'PRESS'}, {"properties": [("direction", 'UP')]}),
+        ("outliner.select_walk", {"type": 'UP_ARROW', "value": 'PRESS', "shift": True},
+         {"properties": [("direction", 'UP'), ("extend", True)]}),
+        ("outliner.select_walk", {"type": 'DOWN_ARROW', "value": 'PRESS'}, {"properties": [("direction", 'DOWN')]}),
+        ("outliner.select_walk", {"type": 'DOWN_ARROW', "value": 'PRESS', "shift": True},
+         {"properties": [("direction", 'DOWN'), ("extend", True)]}),
+        ("outliner.select_walk", {"type": 'LEFT_ARROW', "value": 'PRESS'}, {"properties": [("direction", 'LEFT')]}),
+        ("outliner.select_walk", {"type": 'LEFT_ARROW', "value": 'PRESS', "shift": True},
+         {"properties": [("direction", 'LEFT'), ("toggle_all", True)]}),
+        ("outliner.select_walk", {"type": 'RIGHT_ARROW', "value": 'PRESS'}, {"properties": [("direction", 'RIGHT')]}),
+        ("outliner.select_walk", {"type": 'RIGHT_ARROW', "value": 'PRESS', "shift": True},
+         {"properties": [("direction", 'RIGHT'), ("toggle_all", True)]}),
+        ("outliner.item_openclose", {"type": 'LEFTMOUSE', "value": 'CLICK'},
          {"properties": [("all", False)]}),
-        ("outliner.item_openclose", {"type": 'LEFT_ARROW', "value": 'PRESS'},
+        ("outliner.item_openclose", {"type": 'LEFTMOUSE', "value": 'CLICK', "shift": True},
          {"properties": [("all", True)]}),
-        ("outliner.item_rename", {"type": 'RET', "value": 'PRESS'}, None),
+        ("outliner.item_openclose", {"type": 'EVT_TWEAK_L', "value": 'ANY'},
+         {"properties": [("all", False)]}),
         ("outliner.operation", {"type": 'RIGHTMOUSE', "value": 'PRESS'}, None),
         ("outliner.item_drag_drop", {"type": 'EVT_TWEAK_L', "value": 'ANY'}, None),
         ("outliner.item_drag_drop", {"type": 'EVT_TWEAK_L', "value": 'ANY', "shift": True}, None),
@@ -979,6 +996,7 @@ def km_image(params):
         op_tool("builtin.transform", {"type": 'R', "value": 'PRESS'}),
         op_tool("builtin.cursor", {"type": 'C', "value": 'PRESS'}),
         op_tool("builtin.annotate", {"type": 'D', "value": 'PRESS'}),
+        op_tool("builtin.sample", {"type": 'I', "value": 'PRESS'}),
 
     ])
 
@@ -1094,8 +1112,7 @@ def km_node_editor(params):
         ("node.translate_attach", {"type": 'W', "value": 'PRESS'}, None),
         ("node.translate_attach", {"type": 'EVT_TWEAK_L', "value": 'ANY'}, None),
         ("node.translate_attach", {"type": 'EVT_TWEAK_M', "value": 'ANY'}, None),
-        ("transform.translate", {"type": 'W', "value": 'PRESS'},
-         {"properties": [("release_confirm", True)]}),
+        ("transform.translate", {"type": 'W', "value": 'PRESS'}, None),
         ("transform.translate", {"type": 'EVT_TWEAK_L', "value": 'ANY'},
          {"properties": [("release_confirm", True)]}),
         ("transform.rotate", {"type": 'E', "value": 'PRESS'}, None),
@@ -1136,6 +1153,7 @@ def km_info(params):
         ("info.report_delete", {"type": 'BACK_SPACE', "value": 'PRESS'}, None),
         ("info.report_delete", {"type": 'DEL', "value": 'PRESS'}, None),
         ("info.report_copy", {"type": 'C', "value": 'PRESS', "ctrl": True}, None),
+        op_menu("INFO_MT_context_menu", {"type": 'RIGHTMOUSE', "value": 'PRESS'}),
     ])
 
     return keymap
@@ -1637,7 +1655,7 @@ def km_text(params):
          {"properties": [("lines", 1)]}),
         ("text.line_break", {"type": 'RET', "value": 'PRESS'}, None),
         ("text.line_break", {"type": 'NUMPAD_ENTER', "value": 'PRESS'}, None),
-        op_menu("TEXT_MT_toolbox", {"type": 'RIGHTMOUSE', "value": 'PRESS', "any": True}),
+        op_menu("TEXT_MT_context_menu", {"type": 'RIGHTMOUSE', "value": 'PRESS', "any": True}),
         ("text.autocomplete", {"type": 'SPACE', "value": 'PRESS', "ctrl": True}, None),
         ("text.line_number", {"type": 'TEXTINPUT', "value": 'ANY', "any": True}, None),
         ("text.insert", {"type": 'TEXTINPUT', "value": 'ANY', "any": True}, None),
@@ -1859,6 +1877,7 @@ def km_console(params):
         ("console.indent", {"type": 'TAB', "value": 'PRESS'}, None),
         ("console.unindent", {"type": 'TAB', "value": 'PRESS', "shift": True}, None),
         ("console.insert", {"type": 'TEXTINPUT', "value": 'ANY', "any": True}, None),
+        op_menu("CONSOLE_MT_context_menu", {"type": 'RIGHTMOUSE', "value": 'PRESS'}),
     ])
 
     return keymap
@@ -2498,7 +2517,7 @@ def km_grease_pencil_stroke_weight_mode(params):
         # Brush strength
         ("wm.radial_control", {"type": 'U', "value": 'PRESS', "shift": True},
          {"properties": [("data_path_primary", 'tool_settings.gpencil_sculpt.weight_brush.strength')]}),
-        # Brush sze
+        # Brush size.
         ("wm.radial_control", {"type": 'S', "value": 'PRESS'},
          {"properties": [("data_path_primary", 'tool_settings.gpencil_sculpt.weight_brush.size')]}),
         # Display
@@ -2697,10 +2716,12 @@ def km_paint_curve(params):
 
     items.extend([
         ("paintcurve.add_point_slide", {"type": 'LEFTMOUSE', "value": 'PRESS', "ctrl": True}, None),
-        ("paintcurve.select", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
+        ("paintcurve.select", {"type": 'LEFTMOUSE', "value": 'PRESS'},
+         {"properties": [("extend", False)]}),
         ("paintcurve.select", {"type": 'LEFTMOUSE', "value": 'PRESS', "shift": True},
          {"properties": [("extend", True)]}),
-        ("paintcurve.slide", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
+        ("paintcurve.slide", {"type": 'LEFTMOUSE', "value": 'PRESS'},
+         {"properties": [("align", False)]}),
         ("paintcurve.slide", {"type": 'LEFTMOUSE', "value": 'PRESS', "shift": True},
          {"properties": [("align", True)]}),
         ("paintcurve.select", {"type": 'A', "value": 'PRESS'},
@@ -2825,6 +2846,7 @@ def km_image_paint(params):
          {"properties": [("mode", 'NORMAL')]}),
         ("paint.image_paint", {"type": 'LEFTMOUSE', "value": 'PRESS', "ctrl": True},
          {"properties": [("mode", 'INVERT')]}),
+        ("paint.sample_color", {"type": 'I', "value": 'PRESS'}, None),
         ("paint.brush_colors_flip", {"type": 'X', "value": 'PRESS'}, None),
         ("paint.grab_clone", {"type": 'MIDDLEMOUSE', "value": 'PRESS'}, None),
         ("brush.scale_size", {"type": 'LEFT_BRACKET', "value": 'PRESS'},
@@ -2849,8 +2871,6 @@ def km_image_paint(params):
         ("wm.context_toggle", {"type": 'S', "value": 'PRESS', "shift": True},
          {"properties": [("data_path", 'tool_settings.image_paint.brush.use_smooth_stroke')]}),
         op_menu("VIEW3D_MT_angle_control", {"type": 'R', "value": 'PRESS'}),
-        ("wm.context_menu_enum", {"type": 'E', "value": 'PRESS'},
-         {"properties": [("data_path", 'tool_settings.image_paint.brush.stroke_method')]}),
         op_panel("VIEW3D_PT_paint_texture_context_menu", {"type": 'RIGHTMOUSE', "value": 'PRESS'}),
     ])
 
@@ -2893,8 +2913,6 @@ def km_vertex_paint(params):
         ("wm.context_toggle", {"type": 'S', "value": 'PRESS', "shift": True},
          {"properties": [("data_path", 'tool_settings.vertex_paint.brush.use_smooth_stroke')]}),
         op_menu("VIEW3D_MT_angle_control", {"type": 'R', "value": 'PRESS'}),
-        ("wm.context_menu_enum", {"type": 'E', "value": 'PRESS'},
-         {"properties": [("data_path", 'tool_settings.vertex_paint.brush.stroke_method')]}),
         op_panel("VIEW3D_PT_paint_vertex_context_menu", {"type": 'RIGHTMOUSE', "value": 'PRESS'}),
     ])
 
@@ -2911,15 +2929,13 @@ def km_weight_paint(params):
 
     items.extend([
         ("paint.weight_paint", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
-        ("paint.weight_sample", {"type": 'LEFTMOUSE', "value": 'PRESS', "ctrl": True}, None),
+        ("paint.weight_sample", {"type": 'I', "value": 'PRESS'}, None),
         ("paint.weight_sample_group", {"type": 'LEFTMOUSE', "value": 'PRESS', "shift": True}, None),
         ("brush.scale_size", {"type": 'LEFT_BRACKET', "value": 'PRESS'},
          {"properties": [("scalar", 0.9)]}),
         ("brush.scale_size", {"type": 'RIGHT_BRACKET', "value": 'PRESS'},
          {"properties": [("scalar", 1.0 / 0.9)]}),
         *_template_paint_radial_control("weight_paint"),
-        ("wm.context_menu_enum", {"type": 'E', "value": 'PRESS'},
-         {"properties": [("data_path", 'tool_settings.vertex_paint.brush.stroke_method')]}),
         ("wm.context_toggle", {"type": 'M', "value": 'PRESS'},
          {"properties": [("data_path", 'weight_paint_object.data.use_paint_mask')]}),
         ("wm.context_toggle", {"type": 'V', "value": 'PRESS'},

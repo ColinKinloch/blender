@@ -75,12 +75,14 @@ typedef struct EditBone {
   int flag;
   int layer;
 
+  /* Envelope distance & weight */
   float dist, weight;
   /** put them in order! transform uses this as scale */
   float xwidth, length, zwidth;
   float rad_head, rad_tail;
 
   /* Bendy-Bone parameters */
+  short segments;
   float roll1, roll2;
   float curve_in_x, curve_in_y;
   float curve_out_x, curve_out_y;
@@ -90,8 +92,6 @@ typedef struct EditBone {
 
   /** for envelope scaling */
   float oldlength;
-
-  short segments;
 
   /** Type of next/prev bone handles */
   char bbone_prev_type;
@@ -170,6 +170,10 @@ bool ED_armature_pose_select_pick_with_buffer(struct ViewLayer *view_layer,
                                               bool deselect,
                                               bool toggle,
                                               bool do_nearest);
+
+void ED_armature_pose_select_in_wpaint_mode(struct ViewLayer *view_layer,
+                                            struct Base *base_select);
+
 bool ED_armature_edit_select_pick(
     struct bContext *C, const int mval[2], bool extend, bool deselect, bool toggle);
 
@@ -183,6 +187,8 @@ EditBone *ED_armature_ebone_find_name(const struct ListBase *edbo, const char *n
 EditBone *ED_armature_ebone_get_mirrored(const struct ListBase *edbo, EditBone *ebo);
 void ED_armature_edit_sync_selection(struct ListBase *edbo);
 void ED_armature_edit_validate_active(struct bArmature *arm);
+
+void ED_armature_edit_refresh_layer_used(struct bArmature *arm);
 
 struct Base *ED_armature_base_and_ebone_from_select_buffer(struct Base **bases,
                                                            uint bases_len,
@@ -223,15 +229,9 @@ void ED_armature_edit_transform_mirror_update(struct Object *obedit);
 void ED_armature_origin_set(
     struct Main *bmain, struct Object *ob, const float cursor[3], int centermode, int around);
 
-void ED_armature_transform_bones(struct bArmature *arm, float mat[4][4], const bool do_props);
-void ED_armature_transform_apply(struct Main *bmain,
-                                 struct Object *ob,
-                                 float mat[4][4],
-                                 const bool do_props);
-void ED_armature_transform(struct Main *bmain,
-                           struct bArmature *arm,
-                           float mat[4][4],
-                           const bool do_props);
+void ED_armature_edit_transform(struct bArmature *arm, const float mat[4][4], const bool do_props);
+
+void ED_armature_transform(struct bArmature *arm, const float mat[4][4], const bool do_props);
 
 #define ARM_GROUPS_NAME 1
 #define ARM_GROUPS_ENVELOPE 2

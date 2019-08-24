@@ -1130,7 +1130,7 @@ void BKE_main_lib_objects_recalc_all(Main *bmain)
  * **************************** */
 
 /**
- * Get allocation size fo a given data-block type and optionally allocation name.
+ * Get allocation size of a given data-block type and optionally allocation name.
  */
 size_t BKE_libblock_get_alloc_info(short type, const char **name)
 {
@@ -1727,8 +1727,8 @@ bool BKE_id_new_name_validate(ListBase *lb, ID *id, const char *tname)
 
   /* This was in 2.43 and previous releases
    * however all data in blender should be sorted, not just duplicate names
-   * sorting should not hurt, but noting just incase it alters the way other
-   * functions work, so sort every time */
+   * sorting should not hurt, but noting just in case it alters the way other
+   * functions work, so sort every time. */
 #if 0
   if (result) {
     id_sort_by_name(lb, id);
@@ -1815,7 +1815,7 @@ static int id_refcount_recompute_callback(void *user_data,
   return IDWALK_RET_NOP;
 }
 
-void BLE_main_id_refcount_recompute(struct Main *bmain, const bool do_linked_only)
+void BKE_main_id_refcount_recompute(struct Main *bmain, const bool do_linked_only)
 {
   ID *id;
 
@@ -1913,7 +1913,8 @@ static void library_make_local_copying_check(ID *id,
  * \param bmain: Almost certainly global main.
  * \param lib: If not NULL, only make local data-blocks from this library.
  * \param untagged_only: If true, only make local data-blocks not tagged with
- * LIB_TAG_PRE_EXISTING. \param set_fake: If true, set fake user on all localized data-blocks
+ * LIB_TAG_PRE_EXISTING.
+ * \param set_fake: If true, set fake user on all localized data-blocks
  * (except group and objects ones).
  */
 /* Note: Old (2.77) version was simply making (tagging) data-blocks as local,

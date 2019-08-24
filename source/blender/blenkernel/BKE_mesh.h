@@ -105,6 +105,7 @@ void BKE_mesh_looptri_get_real_edges(const struct Mesh *mesh,
 
 void BKE_mesh_free(struct Mesh *me);
 void BKE_mesh_init(struct Mesh *me);
+void BKE_mesh_clear_geometry(struct Mesh *me);
 struct Mesh *BKE_mesh_add(struct Main *bmain, const char *name);
 void BKE_mesh_copy_data(struct Main *bmain,
                         struct Mesh *me_dst,
@@ -122,6 +123,8 @@ struct Mesh *BKE_mesh_new_nomain_from_template(const struct Mesh *me_src,
                                                int tessface_len,
                                                int loops_len,
                                                int polys_len);
+
+void BKE_mesh_eval_delete(struct Mesh *me_eval);
 
 /* Performs copy for use during evaluation,
  * optional referencing original arrays to reduce memory. */
@@ -179,6 +182,7 @@ void BKE_mesh_to_curve(struct Main *bmain,
                        struct Scene *scene,
                        struct Object *ob);
 void BKE_mesh_material_index_remove(struct Mesh *me, short index);
+bool BKE_mesh_material_index_used(struct Mesh *me, short index);
 void BKE_mesh_material_index_clear(struct Mesh *me);
 void BKE_mesh_material_remap(struct Mesh *me, const unsigned int *remap, unsigned int remap_len);
 void BKE_mesh_smooth_flag_set(struct Object *meshOb, int enableSmooth);
@@ -204,8 +208,6 @@ bool BKE_mesh_uv_cdlayer_rename(struct Mesh *me,
                                 const char *new_name,
                                 bool do_tessface);
 
-float (*BKE_mesh_vertexCos_get(const struct Mesh *me, int *r_numVerts))[3];
-
 void BKE_mesh_split_faces(struct Mesh *mesh, bool free_loop_normals);
 
 /* Create new mesh from the given object at its current state.
@@ -220,7 +222,9 @@ struct Mesh *BKE_mesh_new_from_object(struct Depsgraph *depsgraph,
                                       struct Object *object,
                                       bool preserve_all_data_layers);
 
-/* This is a version of BKE_mesh_new_from_object() which stores mesh in the given main database. */
+/* This is a version of BKE_mesh_new_from_object() which stores mesh in the given main database.
+ * However, that function enforces object type to be a geometry one, and ensures a mesh is always
+ * generated, be it empty. */
 struct Mesh *BKE_mesh_new_from_object_to_bmain(struct Main *bmain,
                                                struct Depsgraph *depsgraph,
                                                struct Object *object,
@@ -262,8 +266,14 @@ void BKE_mesh_mselect_active_set(struct Mesh *me, int index, int type);
 
 void BKE_mesh_count_selected_items(const struct Mesh *mesh, int r_count[3]);
 
-void BKE_mesh_apply_vert_coords(struct Mesh *mesh, float (*vertCoords)[3]);
-void BKE_mesh_apply_vert_normals(struct Mesh *mesh, short (*vertNormals)[3]);
+float (*BKE_mesh_vert_coords_alloc(const struct Mesh *mesh, int *r_vert_len))[3];
+void BKE_mesh_vert_coords_get(const struct Mesh *mesh, float (*vert_coords)[3]);
+
+void BKE_mesh_vert_coords_apply_with_mat4(struct Mesh *mesh,
+                                          const float (*vert_coords)[3],
+                                          const float mat[4][4]);
+void BKE_mesh_vert_coords_apply(struct Mesh *mesh, const float (*vert_coords)[3]);
+void BKE_mesh_vert_normals_apply(struct Mesh *mesh, const short (*vertNormals)[3]);
 
 /* *** mesh_evaluate.c *** */
 
@@ -480,6 +490,7 @@ void BKE_mesh_calc_poly_center(const struct MPoly *mpoly,
 float BKE_mesh_calc_poly_area(const struct MPoly *mpoly,
                               const struct MLoop *loopstart,
                               const struct MVert *mvarray);
+float BKE_mesh_calc_poly_uv_area(const struct MPoly *mpoly, const struct MLoopUV *uv_array);
 void BKE_mesh_calc_poly_angles(const struct MPoly *mpoly,
                                const struct MLoop *loopstart,
                                const struct MVert *mvarray,

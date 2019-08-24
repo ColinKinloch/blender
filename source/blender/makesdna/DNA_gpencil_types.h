@@ -51,6 +51,14 @@ typedef struct bGPDcontrolpoint {
   int size;
 } bGPDcontrolpoint;
 
+typedef struct bGPDspoint_Runtime {
+  /** Original point (used to dereference evaluated data) */
+  struct bGPDspoint *pt_orig;
+  /** Original index array position */
+  int idx_orig;
+  char _pad0[4];
+} bGPDspoint_Runtime;
+
 /* Grease-Pencil Annotations - 'Stroke Point'
  * -> Coordinates may either be 2d or 3d depending on settings at the time
  * -> Coordinates of point on stroke, in proportions of window size
@@ -72,6 +80,10 @@ typedef struct bGPDspoint {
   float uv_fac;
   /** Uv rotation for dot mode. */
   float uv_rot;
+
+  /** Runtime data */
+  char _pad2[4];
+  bGPDspoint_Runtime runtime;
 } bGPDspoint;
 
 /* bGPDspoint->flag */
@@ -148,8 +160,7 @@ typedef struct bGPDpalette {
 /* bGPDpalette->flag */
 typedef enum eGPDpalette_Flag {
   /* palette is active */
-  A,
-  PL_PALETTE_ACTIVE = (1 << 0)
+  PL_PALETTE_ACTIVE = (1 << 0),
 } eGPDpalette_Flag;
 
 /* ***************************************** */
@@ -157,15 +168,21 @@ typedef enum eGPDpalette_Flag {
 
 /* Runtime temp data for bGPDstroke */
 typedef struct bGPDstroke_Runtime {
-  /* runtime final colors (result of original colors and modifiers) */
+  /** runtime final colors (result of original colors and modifiers) */
   float tmp_stroke_rgba[4];
+
+  /** runtime final fill colors (result of original colors and modifiers) */
   float tmp_fill_rgba[4];
 
-  /* temporary layer name only used during copy/paste to put the stroke in the original layer */
+  /** temporary layer name only used during copy/paste to put the stroke in the original layer */
   char tmp_layerinfo[128];
 
   /** Runtime falloff factor (only for transform). */
   float multi_frame_falloff;
+  char _pad[4];
+
+  /** Original stroke (used to dereference evaluated data) */
+  struct bGPDstroke *gps_orig;
 } bGPDstroke_Runtime;
 
 /* Grease-Pencil Annotations - 'Stroke'
@@ -211,7 +228,6 @@ typedef struct bGPDstroke {
   void *_pad3;
 
   bGPDstroke_Runtime runtime;
-  char _pad2[4];
 } bGPDstroke;
 
 /* bGPDstroke->flag */
@@ -412,7 +428,7 @@ typedef enum eGPLayerBlendModes {
 typedef struct bGPdata_Runtime {
   /** Last region where drawing was originated. */
   struct ARegion *ar;
-  /** Stroke buffer (can hold GP_STROKE_BUFFER_MAX). */
+  /** Stroke buffer. */
   void *sbuffer;
 
   /* GP Object drawing */
@@ -431,11 +447,13 @@ typedef struct bGPdata_Runtime {
    * - buffer must be initialized before use, but freed after
    *   whole paint operation is over
    */
-  /** Number of elements currently in cache. */
-  short sbuffer_size;
+  /** Number of elements currently used in cache. */
+  short sbuffer_used;
   /** Flags for stroke that cache represents. */
   short sbuffer_sflag;
-  char _pad[6];
+  /** Number of total elements available in cache. */
+  short sbuffer_size;
+  char _pad[4];
 
   /** Number of control-points for stroke. */
   int tot_cp_points;
@@ -467,7 +485,6 @@ typedef struct bGPdata {
   ListBase layers;
   /** Settings for this data-block. */
   int flag;
-
   char _pad1[4];
 
   /* Palettes */
@@ -650,6 +667,8 @@ typedef enum eGP_DrawMode {
   ((gpd) && (gpd->flag & \
              (GP_DATA_STROKE_EDITMODE | GP_DATA_STROKE_SCULPTMODE | GP_DATA_STROKE_WEIGHTMODE)))
 #define GPENCIL_PAINT_MODE(gpd) ((gpd) && (gpd->flag & (GP_DATA_STROKE_PAINTMODE)))
+#define GPENCIL_SCULPT_MODE(gpd) ((gpd) && (gpd->flag & GP_DATA_STROKE_SCULPTMODE))
+#define GPENCIL_WEIGHT_MODE(gpd) ((gpd) && (gpd->flag & GP_DATA_STROKE_WEIGHTMODE))
 #define GPENCIL_SCULPT_OR_WEIGHT_MODE(gpd) \
   ((gpd) && (gpd->flag & (GP_DATA_STROKE_SCULPTMODE | GP_DATA_STROKE_WEIGHTMODE)))
 #define GPENCIL_NONE_EDIT_MODE(gpd) \

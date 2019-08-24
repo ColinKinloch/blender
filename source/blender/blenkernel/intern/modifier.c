@@ -785,6 +785,9 @@ bool modifiers_usesSubsurfFacedots(struct Scene *scene, Object *ob)
   VirtualModifierData virtualModifierData;
   ModifierData *md = modifiers_getVirtualModifierList(ob, &virtualModifierData);
   int cage_index = modifiers_getCageIndex(scene, ob, NULL, 1);
+  if (cage_index == -1) {
+    return false;
+  }
   /* Find first modifier enabled on cage. */
   for (int i = 0; md && i < cage_index; i++) {
     md = md->next;
@@ -799,7 +802,7 @@ bool modifiers_usesSubsurfFacedots(struct Scene *scene, Object *ob)
       }
     }
     else if (mti->type == eModifierTypeType_OnlyDeform) {
-      /* Theses modifiers do not reset the subdiv flag nor change the topology.
+      /* These modifiers do not reset the subdiv flag nor change the topology.
        * We can still search for a subsurf modifier. */
     }
     else {

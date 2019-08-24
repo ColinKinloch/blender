@@ -156,9 +156,8 @@ void ED_image_draw_info(Scene *scene,
   char str[256];
   int dx = 6;
   /* local coordinate visible rect inside region, to accommodate overlapping ui */
-  rcti rect;
-  ED_region_visible_rect(ar, &rect);
-  const int ymin = rect.ymin;
+  const rcti *rect = ED_region_visible_rect(ar);
+  const int ymin = rect->ymin;
   const int dy = ymin + 0.3f * UI_UNIT_Y;
 
   /* text colors */
@@ -796,6 +795,11 @@ void draw_image_main(const bContext *C, ARegion *ar)
   /* retrieve the image and information about it */
   ima = ED_space_image(sima);
   ED_space_image_get_zoom(sima, ar, &zoomx, &zoomy);
+
+  /* Tag image as in active use for garbage collector. */
+  if (ima) {
+    BKE_image_tag_time(ima);
+  }
 
   show_viewer = (ima && ima->source == IMA_SRC_VIEWER) != 0;
   show_render = (show_viewer && ima->type == IMA_TYPE_R_RESULT) != 0;

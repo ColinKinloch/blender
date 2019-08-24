@@ -105,7 +105,7 @@ static bool gp_data_add_poll(bContext *C)
 /* add new datablock - wrapper around API */
 static int gp_data_add_exec(bContext *C, wmOperator *op)
 {
-  PointerRNA gpd_owner = {{NULL}};
+  PointerRNA gpd_owner = {NULL};
   bGPdata **gpd_ptr = ED_gpencil_data_get_pointers(C, &gpd_owner);
   bool is_annotation = ED_gpencil_data_owner_is_annotation(&gpd_owner);
 
@@ -231,7 +231,7 @@ void GPENCIL_OT_data_unlink(wmOperatorType *ot)
 /* add new layer - wrapper around API */
 static int gp_layer_add_exec(bContext *C, wmOperator *op)
 {
-  PointerRNA gpd_owner = {{NULL}};
+  PointerRNA gpd_owner = {NULL};
   bGPdata **gpd_ptr = ED_gpencil_data_get_pointers(C, &gpd_owner);
   bool is_annotation = ED_gpencil_data_owner_is_annotation(&gpd_owner);
 
@@ -594,8 +594,7 @@ static int gp_frame_duplicate_exec(bContext *C, wmOperator *op)
 {
   bGPdata *gpd = ED_gpencil_data_get_active(C);
   bGPDlayer *gpl = BKE_gpencil_layer_getactive(gpd);
-  Depsgraph *depsgraph = CTX_data_depsgraph(C);
-  int cfra_eval = (int)DEG_get_ctime(depsgraph);
+  Scene *scene = CTX_data_scene(C);
 
   int mode = RNA_enum_get(op->ptr, "mode");
 
@@ -605,12 +604,12 @@ static int gp_frame_duplicate_exec(bContext *C, wmOperator *op)
   }
 
   if (mode == 0) {
-    BKE_gpencil_frame_addcopy(gpl, cfra_eval);
+    BKE_gpencil_frame_addcopy(gpl, CFRA);
   }
   else {
     for (gpl = gpd->layers.first; gpl; gpl = gpl->next) {
       if ((gpl->flag & GP_LAYER_LOCKED) == 0) {
-        BKE_gpencil_frame_addcopy(gpl, cfra_eval);
+        BKE_gpencil_frame_addcopy(gpl, CFRA);
       }
     }
   }
@@ -1521,8 +1520,10 @@ static int gp_stroke_lock_color_exec(bContext *C, wmOperator *UNUSED(op))
   /* first lock all colors */
   for (short i = 0; i < *totcol; i++) {
     Material *tmp_ma = give_current_material(ob, i + 1);
-    tmp_ma->gp_style->flag |= GP_STYLE_COLOR_LOCKED;
-    DEG_id_tag_update(&tmp_ma->id, ID_RECALC_COPY_ON_WRITE);
+    if (tmp_ma) {
+      tmp_ma->gp_style->flag |= GP_STYLE_COLOR_LOCKED;
+      DEG_id_tag_update(&tmp_ma->id, ID_RECALC_COPY_ON_WRITE);
+    }
   }
 
   /* loop all selected strokes and unlock any color */
@@ -2199,7 +2200,7 @@ int ED_gpencil_join_objects_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
-  Depsgraph *depsgraph = CTX_data_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Object *ob_active = CTX_data_active_object(C);
   bGPdata *gpd_dst = NULL;
   bool ok = false;
@@ -2433,10 +2434,12 @@ static int gpencil_lock_layer_exec(bContext *C, wmOperator *UNUSED(op))
 
   for (short i = 0; i < *totcol; i++) {
     ma = give_current_material(ob, i + 1);
-    gp_style = ma->gp_style;
-    gp_style->flag |= GP_STYLE_COLOR_LOCKED;
-    gp_style->flag |= GP_STYLE_COLOR_HIDE;
-    DEG_id_tag_update(&ma->id, ID_RECALC_COPY_ON_WRITE);
+    if (ma) {
+      gp_style = ma->gp_style;
+      gp_style->flag |= GP_STYLE_COLOR_LOCKED;
+      gp_style->flag |= GP_STYLE_COLOR_HIDE;
+      DEG_id_tag_update(&ma->id, ID_RECALC_COPY_ON_WRITE);
+    }
   }
 
   /* loop all selected strokes and unlock any color used in active layer */
@@ -2515,7 +2518,7 @@ static int gpencil_color_isolate_exec(bContext *C, wmOperator *op)
   for (short i = 0; i < *totcol; i++) {
     ma = give_current_material(ob, i + 1);
     /* Skip if this is the active one */
-    if (ma == active_ma) {
+    if ((ma == NULL) || (ma == active_ma)) {
       continue;
     }
 
@@ -2534,6 +2537,9 @@ static int gpencil_color_isolate_exec(bContext *C, wmOperator *op)
     /* Set flags on all "other" colors */
     for (short i = 0; i < *totcol; i++) {
       ma = give_current_material(ob, i + 1);
+      if (ma == NULL) {
+        continue;
+      }
       gp_style = ma->gp_style;
       if (gp_style == active_color) {
         continue;
@@ -2548,6 +2554,9 @@ static int gpencil_color_isolate_exec(bContext *C, wmOperator *op)
     /* Clear flags - Restore everything else */
     for (short i = 0; i < *totcol; i++) {
       ma = give_current_material(ob, i + 1);
+      if (ma == NULL) {
+        continue;
+      }
       gp_style = ma->gp_style;
       gp_style->flag &= ~flags;
       DEG_id_tag_update(&ma->id, ID_RECALC_COPY_ON_WRITE);
@@ -2610,10 +2619,12 @@ static int gpencil_color_hide_exec(bContext *C, wmOperator *op)
     MaterialGPencilStyle *color = NULL;
     for (short i = 0; i < *totcol; i++) {
       ma = give_current_material(ob, i + 1);
-      color = ma->gp_style;
-      if (active_color != color) {
-        color->flag |= GP_STYLE_COLOR_HIDE;
-        DEG_id_tag_update(&ma->id, ID_RECALC_COPY_ON_WRITE);
+      if (ma) {
+        color = ma->gp_style;
+        if (active_color != color) {
+          color->flag |= GP_STYLE_COLOR_HIDE;
+          DEG_id_tag_update(&ma->id, ID_RECALC_COPY_ON_WRITE);
+        }
       }
     }
   }
@@ -2671,9 +2682,11 @@ static int gpencil_color_reveal_exec(bContext *C, wmOperator *UNUSED(op))
 
   for (short i = 0; i < *totcol; i++) {
     ma = give_current_material(ob, i + 1);
-    gp_style = ma->gp_style;
-    gp_style->flag &= ~GP_STYLE_COLOR_HIDE;
-    DEG_id_tag_update(&ma->id, ID_RECALC_COPY_ON_WRITE);
+    if (ma) {
+      gp_style = ma->gp_style;
+      gp_style->flag &= ~GP_STYLE_COLOR_HIDE;
+      DEG_id_tag_update(&ma->id, ID_RECALC_COPY_ON_WRITE);
+    }
   }
 
   /* updates */
@@ -2722,9 +2735,11 @@ static int gpencil_color_lock_all_exec(bContext *C, wmOperator *UNUSED(op))
 
   for (short i = 0; i < *totcol; i++) {
     ma = give_current_material(ob, i + 1);
-    gp_style = ma->gp_style;
-    gp_style->flag |= GP_STYLE_COLOR_LOCKED;
-    DEG_id_tag_update(&ma->id, ID_RECALC_COPY_ON_WRITE);
+    if (ma) {
+      gp_style = ma->gp_style;
+      gp_style->flag |= GP_STYLE_COLOR_LOCKED;
+      DEG_id_tag_update(&ma->id, ID_RECALC_COPY_ON_WRITE);
+    }
   }
 
   /* updates */
@@ -2773,9 +2788,11 @@ static int gpencil_color_unlock_all_exec(bContext *C, wmOperator *UNUSED(op))
 
   for (short i = 0; i < *totcol; i++) {
     ma = give_current_material(ob, i + 1);
-    gp_style = ma->gp_style;
-    gp_style->flag &= ~GP_STYLE_COLOR_LOCKED;
-    DEG_id_tag_update(&ma->id, ID_RECALC_COPY_ON_WRITE);
+    if (ma) {
+      gp_style = ma->gp_style;
+      gp_style->flag &= ~GP_STYLE_COLOR_LOCKED;
+      DEG_id_tag_update(&ma->id, ID_RECALC_COPY_ON_WRITE);
+    }
   }
 
   /* updates */
@@ -2869,7 +2886,7 @@ static int gpencil_color_select_exec(bContext *C, wmOperator *op)
   CTX_DATA_END;
 
   /* copy on write tag is needed, or else no refresh happens */
-  DEG_id_tag_update(&gpd->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&gpd->id, ID_RECALC_GEOMETRY | ID_RECALC_COPY_ON_WRITE);
 
   /* notifiers */
   WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, NULL);
